@@ -1,0 +1,229 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Smart Parking Predictor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  
+  <!-- Leaflet (lightweight map library) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Leaflet Routing Machine for routing -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    
+    #controls { 
+      padding: 12px 15px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 100;
+    }
+    
+    .control-row {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    
+    .control-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .control-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+    }
+    
+    button, input[type="file"], input[type="number"] {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    button {
+      background: rgba(255,255,255,0.25);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.5);
+      font-weight: 600;
+    }
+    
+    button:hover:not(:disabled) { 
+      background: rgba(255,255,255,0.35);
+      transform: translateY(-1px);
+    }
+    
+    button:disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed; 
+    }
+    
+    input[type="file"] {
+      cursor: pointer;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 6px 10px;
+    }
+    
+    input[type="number"] {
+      width: 70px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 6px 10px;
+    }
+    
+    input[type="number"]::placeholder {
+      color: rgba(255,255,255,0.6);
+    }
+    
+    #status { 
+      padding: 10px 15px;
+      font-size: 13px;
+      display: none;
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+    }
+    
+    #status.show { display: block; }
+    #status.error { background: #fee; color: #c33; }
+    #status.success { background: #efe; color: #3c3; }
+    #status.info { background: #eef; color: #33c; }
+    
+    #map { 
+      flex: 1;
+      background: #e0e0e0;
+    }
+    
+    #areaInfo { 
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      padding: 12px 15px;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      overflow-y: auto;
+      max-height: 180px;
+    }
+    
+    .area-card { 
+      border: 1px solid #ddd;
+      padding: 12px;
+      border-radius: 6px;
+      background: #f9f9f9;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .area-card h4 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    
+    .area-card p {
+      margin: 6px 0;
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .area-card .spots {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+      margin: 8px 0;
+    }
+    
+    .area-card button {
+      width: 100%;
+      margin-top: 6px;
+      font-size: 12px;
+      padding: 6px 8px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 3px;
+    }
+    
+    .area-card button:hover {
+      background: #5568d3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="controls">
+      <div class="control-row">
+        <div class="control-group">
+          <label>Dataset (CSV):</label>
+          <input type="file" id="datasetFile" accept=".csv" />
+          <button id="uploadBtn">Run LSTM Model</button>
+        </div>
+        
+        <div class="control-group">
+          <label>Or Predictions:</label>
+          <input type="file" id="predFile" accept=".csv" />
+          <button id="uploadPredBtn">Upload CSV</button>
+        </div>
+      </div>
+      
+      <div class="control-row">
+        <div class="control-group">
+          <label>Geo Data:</label>
+          <input type="file" id="geoFile" accept=".csv" />
+          <button id="uploadGeoBtn">Upload</button>
+        </div>
+        
+        <div class="control-group">
+          <label>Test Time (min):</label>
+          <input id="manualTime" type="number" min="5" max="60" value="30" step="5" />
+          <button id="applyTime">Apply</button>
+        </div>
+        
+        <button id="downloadBtn">⬇ Download CSV</button>
+        <button id="refreshBtn">🔄 Refresh</button>
+        <button id="autoRouteBtn">🚗 Auto Route</button>
+      </div>
+    </div>
+
+    <div id="status"></div>
+    <div id="map"></div>
+    <div id="areaInfo"></div>
+  </div>
+
+  <script src="static/app.js"></script>
+</body>
+</html>

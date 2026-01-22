@@ -1,0 +1,12 @@
+{
+  "serial_port": "/dev/ttyACM0",
+  "baudrate": 9600,
+  "sensor_to_area": {
+    "Sensor 1": "Docklands",
+    "Sensor 2": "Queensberry",
+    "Sensor 3": "Queensberry",
+    "Sensor 4": "Southbank"
+  },
+  "default_map_center": [-37.8150, 144.9460],
+  "PORT": 8000
+}

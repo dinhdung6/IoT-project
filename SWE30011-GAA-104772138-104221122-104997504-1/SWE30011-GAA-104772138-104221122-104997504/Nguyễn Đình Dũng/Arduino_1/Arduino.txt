@@ -1,0 +1,65 @@
+// HY-SRF05 - 4 Sensor Sequential Operation
+
+// Assign sensor names (you can rename these to Front/Left/Right/Back if you want)
+const char* sensorNames[4] = {"Sensor 1", "Sensor 2", "Sensor 3", "Sensor 4"};
+
+// TRIG and ECHO pin mapping
+const int trigPins[4] = {2, 3, 4, 5};
+const int echoPins[4] = {8, 9, 10, 11};
+
+long duration;
+float distance;
+int detectRangeCM = 100; // detection threshold
+
+void setup() {
+  Serial.begin(9600);
+
+  for (int i = 0; i < 4; i++) {
+    pinMode(trigPins[i], OUTPUT);
+    pinMode(echoPins[i], INPUT);
+  }
+
+  Serial.println("Ultrasonic Multi-Sensor System Started\n");
+}
+
+// Read distance for selected sensor
+float readDistance(int index) {
+  digitalWrite(trigPins[index], LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPins[index], HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPins[index], LOW);
+
+  duration = pulseIn(echoPins[index], HIGH, 30000); // timeout to avoid lock
+  float cm = duration * 0.034 / 2;
+  return cm;
+}
+
+void loop() {
+  for (int s = 0; s < 4; s++) {
+
+    Serial.print("\n=== Running ");
+    Serial.print(sensorNames[s]);
+    Serial.println(" for 5 seconds ===");
+
+    unsigned long startTime = millis();
+
+    while (millis() - startTime < 5000) {  // Run sensor for 5 seconds
+
+      float d = readDistance(s);
+
+      if (d > 0 && d <= detectRangeCM) {
+        Serial.print(sensorNames[s]);
+        Serial.println(" DETECT");
+        delay(1000); // prevent spamming
+      } else {
+        Serial.print(sensorNames[s]);
+        Serial.println(" UNDETECT");
+        delay(200);
+      }
+    }
+
+    Serial.println("Waiting 2 seconds...\n");
+    delay(2000);
+  }
+}
